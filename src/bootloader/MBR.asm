@@ -1,7 +1,9 @@
 ; ##################################################
 ; MBR.asm
-;
-;
+
+; function:
+; Load boot to memory
+
 ; author: Ken
 ; ##################################################
 
@@ -69,6 +71,7 @@ LOAD_SUCCESS:
 	mov ax, [0x7dfe]
 	cmp ax, 0xaa55
 	jnz NOT_BOOTABLE_ERROR
+	mov dl, [HARD_DISK_DRIVE_NUM]
 	mov si, DISK_TEMP_ADDRESS
 	mov cx, 0x200
 	mov di, 0x7c00
