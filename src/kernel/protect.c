@@ -14,11 +14,7 @@
 #include "inc/int.h"
 #include "../lib/inc/mem.h"
 
-#define LDT_DES_INDEX  4
-#define CALL_GATE_R3_INDEX 5
-#define R3_CODE 6
-#define R3_DATA 7
-#define TSS_DES_INDEX 8
+
 //#define call_gate_ring3 0x2a
 
 extern u32 Ring3StackTop;
@@ -26,16 +22,22 @@ extern u32 Ring0StackTop;
 extern void ring0_exit();
 
 DESCRIPTOR32 gdt_des[16] = {
-		[0].data[0] = 0x0, // reserverd
-		[0].data[1] = 0x0, // reserverd
-		des_bitmap(1,0xffff,0x0000,0x00,0xA,1,0,1,0xf,0,0,1,1,0x00), // Kernel Code Seg
-		des_bitmap(2,0xffff,0x0000,0x00,0x2,1,0,1,0xf,0,0,1,1,0x00), // Kernel Data Seg
-		des_bitmap(3,0xffff,0x8000,0x0B,0x2,1,3,1,0x0,0,0,1,0,0x00), // Video Data Seg(ring3 and ring0 share)
-		des_bitmap(LDT_DES_INDEX,0xffff,0x0000,0x00,0x2,0,0,1,0x0,0,0,1,0,0x00), // ldt_descriptor
-		call_gate32_bitmap_des(CALL_GATE_R3_INDEX,0x0,0x0,0x0,0x0),// ring0 call gate
-		des_bitmap(R3_CODE,0xffff,0x0000,0x00,0xA,1,3,1,0xf,0,0,1,1,0x00), // Ring3 Code Seg
-		des_bitmap(R3_DATA,0xffff,0x0000,0x00,0x2,1,3,1,0xf,0,0,1,1,0x00), // Ring3 Data  Seg
-		tss32_bitmap_des(TSS_DES_INDEX,0x0,0x0000,0x00,0x9,0x3,0x0,0x0,0x0,0x0) // available Tss32
+		init_descriptor32_data(GDT_RESERVERD,0x0,0x0),
+		init_descriptor32_bitmap(GDT_KERNEL_CODE,0xffff,0x0000,0x00,DA_CR,DPL_PRIVILEGE_KRNL,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // Kernel Code Seg
+		init_descriptor32_bitmap(GDT_KERNEL_DATA,0xffff,0x0000,0x00,DA_DRW,DPL_PRIVILEGE_KRNL,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // Kernel Data Seg
+		init_descriptor32_bitmap(GDT_VRAM,0xffff,0x8000,0x0B,DA_DRW,DPL_PRIVILEGE_USER,\
+				SEG_PRESENT,0x0,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY,0x00), // VRAM Seg
+		init_descriptor32_bitmap(GDT_LDT_DESCRIPTOR,0xffff,0x0000,0x00,DA_LDT,DPL_PRIVILEGE_KRNL,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // Kernel LDT
+		init_gate32_data(GDT_CALL_GATE32,0x0,0x0),// ring0 call gate
+		init_descriptor32_bitmap(GDT_RING3_CODE,0xffff,0x0000,0x00,DA_CR,DPL_PRIVILEGE_USER,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // Ring3 Code Seg
+		init_descriptor32_bitmap(GDT_RING3_DATA,0xffff,0x0000,0x00,DA_DRW,DPL_PRIVILEGE_USER,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // Ring3 Data Seg
+		init_descriptor32_bitmap(GDT_TSS32_DESCRIPTOR,0x0,0x0,0x0,DA_386TSS,DPL_PRIVILEGE_USER,\
+				SEG_PRESENT,0x0,SEG_AVL_SET,SEG_SIZE_TYPE_INVALID,SEG_GRANULARITY,0x00), // available Tss32 Descriptor
 };
 
 GDTR32 gdtr = {
@@ -45,8 +47,10 @@ GDTR32 gdtr = {
 
 
 DESCRIPTOR32 ldt_des[3] = {
-		des_bitmap(0,0xffff,0x0000,0x00,0xA,1,0,1,0xf,0,0,1,1,0x00), // LDT Code Seg
-		des_bitmap(1,0xffff,0x0000,0x00,0x2,1,0,1,0xf,0,0,1,1,0x00), // LDT Data Seg
+		init_descriptor32_bitmap(LDT_KERNEL_CODE,0xffff,0x0000,0x00,DA_CR,DPL_PRIVILEGE_KRNL,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // LDT Code Seg
+		init_descriptor32_bitmap(LDT_KERNEL_DATA,0xffff,0x0000,0x00,DA_DRW,DPL_PRIVILEGE_KRNL,\
+				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // LDT Data Seg
 };
 
 TSS32 tss32;
