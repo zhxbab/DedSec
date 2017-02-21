@@ -1,7 +1,7 @@
 #include "inc/klib.h"
 #include "inc/stdlib.h"
 
-unsigned int disp_pos = 0;
+volatile unsigned int disp_pos = 0;
 /*======================================================================*
                                disp_int
  *======================================================================*/
@@ -55,7 +55,7 @@ PUBLIC void outb(u16 io_num, u8 io_data){
 
 
 PUBLIC u8 inb(u16 io_num){
-	u8 data;
+	volatile u8 data;
 	__asm__ __volatile__("movw %0, %%dx" : :"m"(io_num));
 	__asm__ __volatile__("xor %eax,%eax; in %dx, %al");
 	__asm__ __volatile__("movb %%al, %0" : :"m"(data));
@@ -64,7 +64,7 @@ PUBLIC u8 inb(u16 io_num){
 }
 
 PUBLIC void sync_cursor(u32 disp_pos){
-	u16 temp_disp_pos = (u16)(disp_pos/2);
+	volatile u16 temp_disp_pos = (u16)(disp_pos/2);
 	outb(CURSOR_INDEX_IO,CURSOR_DATA_H);
 	outb(CURSOR_DATA_IO,(u8)((temp_disp_pos>>8)&0xFF));
 	outb(CURSOR_INDEX_IO,CURSOR_DATA_L);
