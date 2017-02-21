@@ -1,16 +1,20 @@
+#ifndef	_PROTECT_H_
+#define	_PROTECT_H_
+#include "../../lib/inc/type.h"
+/* GDT 和 IDT 中描述符的个数 */
+#define	GDT_SIZE	128*8
+#define	IDT_SIZE	256*8
 
-/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                            protect.h
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                                                    Forrest Yu, 2005
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+/* 权限 */
+#define	PRIVILEGE_KRNL	0
+#define	PRIVILEGE_TASK	1
+#define	PRIVILEGE_USER	3
+/* RPL */
+#define	RPL_KRNL	SA_RPL0
+#define	RPL_TASK	SA_RPL1
+#define	RPL_USER	SA_RPL3
 
-#ifndef	_ORANGES_PROTECT_H_
-#define	_ORANGES_PROTECT_H_
-
-#define GDT_LIMIT 127
-
-#define gdt_des_bitmap(index, seg_limit_0_v, base_0_v, base_1_v, type_v, s_v, dpl_v, p_v,seg_limit_1_v, avl_v, l_v, db_v, g_v, base_2_v)\
+#define des_bitmap(index, seg_limit_0_v, base_0_v, base_1_v, type_v, s_v, dpl_v, p_v,seg_limit_1_v, avl_v, l_v, db_v, g_v, base_2_v)\
 	[index].bitmap.seg_limit_0 = seg_limit_0_v,\
 	[index].bitmap.base_0 = base_0_v,\
 	[index].bitmap.base_1 = base_1_v,\
@@ -25,11 +29,48 @@
 	[index].bitmap.g = g_v,\
 	[index].bitmap.base_2 = base_2_v
 
+#define int_gate32_bitmap(index, offset_0_v, seg_s_v, dpl_v, offset_1_v)\
+	[index].bitmap.offset_0 = offset_0_v,\
+	[index].bitmap.seg_s = seg_s_v,\
+	[index].bitmap.dummy_0 = 0x0,\
+	[index].bitmap.dummy_1 = 0x0,\
+	[index].bitmap.type = 0x6,\
+	[index].bitmap.d = 0x1,\
+	[index].bitmap.dummy_2 = 0x0,\
+	[index].bitmap.dpl = dpl_v,\
+	[index].bitmap.p = 0x1,\
+	[index].bitmap.offset_1 = offset_1_v
+
+#define call_gate32_bitmap_des(index, offset_0_v, seg_s_v, dpl_v, offset_1_v)\
+	[index].call_gate32_bitmap_des.offset_0 = offset_0_v,\
+	[index].call_gate32_bitmap_des.seg_s = seg_s_v,\
+	[index].call_gate32_bitmap_des.dummy_0 = 0x0,\
+	[index].call_gate32_bitmap_des.dummy_1 = 0x0,\
+	[index].call_gate32_bitmap_des.type = 0xC,\
+	[index].call_gate32_bitmap_des.dummy_2 = 0x0,\
+	[index].call_gate32_bitmap_des.dpl = dpl_v,\
+	[index].call_gate32_bitmap_des.p = 0x1,\
+	[index].call_gate32_bitmap_des.offset_1 = offset_1_v
+
+
+#define tss32_bitmap_des(index, seg_limit_0_v, base_0_v, base_1_v, type_v, dpl_v, seg_limit_1_v, avl_v, g_v, base_2_v)\
+	[index].tss32_bitmap_des.seg_limit_0 = seg_limit_0_v,\
+	[index].tss32_bitmap_des.base_0 = base_0_v,\
+	[index].tss32_bitmap_des.base_1 = base_1_v,\
+	[index].tss32_bitmap_des.type = type_v,\
+	[index].tss32_bitmap_des.dummy_1 = 0x0,\
+	[index].tss32_bitmap_des.dpl = dpl_v,\
+	[index].tss32_bitmap_des.p = 0x1,\
+	[index].tss32_bitmap_des.seg_limit_1 = seg_limit_1_v,\
+	[index].tss32_bitmap_des.avl = avl_v,\
+	[index].tss32_bitmap_des.dummy_2 = 0x0,\
+	[index].tss32_bitmap_des.g = g_v,\
+	[index].tss32_bitmap_des.base_2 = base_2_v
 
 /* 存储段描述符/系统段描述符 */
 typedef union s_descriptor32		/* 共 8 个字节 */
 {
-	unsigned int data;
+	unsigned int data[2];
 	struct bitmap_s{
 		unsigned short seg_limit_0	:16;
 		unsigned short base_0	:16;
@@ -45,6 +86,31 @@ typedef union s_descriptor32		/* 共 8 个字节 */
 		unsigned short g		:1;
 		unsigned short base_2	:8;
 	}bitmap;
+	struct call_gate32_bitmap_des_s{
+		unsigned short offset_0	:16;
+		unsigned short seg_s	:16;
+		unsigned short dummy_0	:5;
+		unsigned short dummy_1	:3;
+		unsigned short type		:4;
+		unsigned short dummy_2	:1;
+		unsigned short dpl		:2;
+		unsigned short p		:1;
+		unsigned short offset_1	:16;
+	}call_gate32_bitmap_des;
+	struct tss32_bitmap_des_s{
+		unsigned short seg_limit_0	:16;
+		unsigned short base_0	:16;
+		unsigned short base_1	:8;
+		unsigned short type		:4;
+		unsigned short dummy_1	:1;
+		unsigned short dpl		:2;
+		unsigned short p		:1;
+		unsigned short seg_limit_1	:4;
+		unsigned short avl	:1;
+		unsigned short dummy_2	:2;
+		unsigned short g	:1;
+		unsigned short base_2	:8;
+	}tss32_bitmap_des;
 }DESCRIPTOR32;
 
 typedef struct s_gdtr32{
@@ -52,8 +118,104 @@ typedef struct s_gdtr32{
 	unsigned int base;
 }__attribute__((packed)) GDTR32;
 
+typedef struct s_idtr32{
+	unsigned short limit;
+	unsigned int base;
+}__attribute__((packed)) IDTR32;
+
+typedef struct s_ldtr{
+	unsigned short selector;
+}LDTR;
+
+typedef struct s_tr{
+	unsigned short selector;
+}TR;
+
+typedef union s_int_gate32		/* 共 8 个字节 */
+{
+	unsigned int data[2];
+	struct int_gate32_bitmap_s{
+		unsigned short offset_0	:16;
+		unsigned short seg_s	:16;
+		unsigned short dummy_0	:5;
+		unsigned short dummy_1	:3;
+		unsigned short type		:3;
+		unsigned short d		:1;
+		unsigned short dummy_2	:1;
+		unsigned short dpl		:2;
+		unsigned short p		:1;
+		unsigned short offset_1	:16;
+	}bitmap;
+}INT_GATE32;
+
+
+typedef union s_call_gate32		/* 共 8 个字节 */
+{
+	unsigned int data[2];
+	struct call_gate32_bitmap_s{
+		unsigned short offset_0	:16;
+		unsigned short seg_s	:16;
+		unsigned short count	:5; //in call gate it is count
+		unsigned short dummy_0	:3;
+		unsigned short type		:4;
+		unsigned short dummy_1	:1;
+		unsigned short dpl		:2;
+		unsigned short p		:1;
+		unsigned short offset_1	:16;
+	}call_gate32_bitmap;
+}CALL_GATE32;
+
+
+typedef struct s_tss32 {
+	u32	backlink;
+	u32	esp0;		/* stack pointer to use during interrupt */
+	u32	ss0;		/*   "   segment  "  "    "        "     */
+	u32	esp1;
+	u32	ss1;
+	u32	esp2;
+	u32	ss2;
+	u32	cr3;
+	u32	eip;
+	u32	flags;
+	u32	eax;
+	u32	ecx;
+	u32	edx;
+	u32	ebx;
+	u32	esp;
+	u32	ebp;
+	u32	esi;
+	u32	edi;
+	u32	es;
+	u32	cs;
+	u32	ss;
+	u32	ds;
+	u32	fs;
+	u32	gs;
+	u32	ldt;
+	u16	trap;
+	u16	iobase;	/* I/O位图基址大于或等于TSS段界限，就表示没有I/O许可位图 */
+	u8	iomap[128]; //io map
+}TSS32;
+
+
+void set_ldt_descriptor(DESCRIPTOR32 *pdescripot, u8 dpl, u32 base, u32 limit);
+void set_call_gate32(DESCRIPTOR32 *pdescripot, u8 dpl, u32 offset, u16 selector);
+void init_tss32();
+void set_tss32(TSS32* ptss32);
+typedef struct stack_info32{
+	u16 ss;
+	u32 esp;
+	u16 cs;
+	u32 eip;
+}STACK_INFO32;
+
+
+typedef struct icall32_s{
+	u32 offset;
+	u16 seg;
+}ICALL32;
 ///* 门描述符 */
-//typedef struct s_gate
+//typedef struct s_gate32
 //{
 //	u16	offset_low;	/* Offset Low */
 //	u16	selector;	/* Selector */
@@ -64,7 +226,9 @@ typedef struct s_gdtr32{
 //				   发生时，要复制的双字参数的数量。*/
 //	u8	attr;		/* P(1) DPL(2) DT(1) TYPE(4) */
 //	u16	offset_high;	/* Offset High */
-//}GATE;
+//}GATE32;
+
+
 //
 //
 ///* GDT */
@@ -105,28 +269,5 @@ typedef struct s_gdtr32{
 //#define	DA_386CGate		0x8C	/* 386 调用门类型值			*/
 //#define	DA_386IGate		0x8E	/* 386 中断门类型值			*/
 //#define	DA_386TGate		0x8F	/* 386 陷阱门类型值			*/
-//
-///* 中断向量 */
-//#define	INT_VECTOR_DIVIDE		0x0
-//#define	INT_VECTOR_DEBUG		0x1
-//#define	INT_VECTOR_NMI			0x2
-//#define	INT_VECTOR_BREAKPOINT		0x3
-//#define	INT_VECTOR_OVERFLOW		0x4
-//#define	INT_VECTOR_BOUNDS		0x5
-//#define	INT_VECTOR_INVAL_OP		0x6
-//#define	INT_VECTOR_COPROC_NOT		0x7
-//#define	INT_VECTOR_DOUBLE_FAULT		0x8
-//#define	INT_VECTOR_COPROC_SEG		0x9
-//#define	INT_VECTOR_INVAL_TSS		0xA
-//#define	INT_VECTOR_SEG_NOT		0xB
-//#define	INT_VECTOR_STACK_FAULT		0xC
-//#define	INT_VECTOR_PROTECTION		0xD
-//#define	INT_VECTOR_PAGE_FAULT		0xE
-//#define	INT_VECTOR_COPROC_ERR		0x10
-//
-///* 中断向量 */
-//#define	INT_VECTOR_IRQ0			0x20
-//#define	INT_VECTOR_IRQ8			0x28
-//
-//
-#endif /* _ORANGES_PROTECT_H_ */
+
+#endif /* _PROTECT_H_ */

@@ -14,25 +14,37 @@ extern choose	; int choose(int a, int b);
 extern set_gdt  ; void set_gdt()
 extern data32_index
 extern vedioseg_index
-code32_index equ 0x8
+extern protect_main
+extern ldt_function
+extern ring3main
+extern ring0exit
+;constant define
 
-[SECTION .bss]
-StackSpace		resb	256 ; reseverd bytes
+code32_index 	equ		0x8
+ldt_code_index 	equ		0x4
+
+[section .bss align=16]
+StackSpace		resb	4*1024 ; reseverd bytes
 StackTop:		; 栈顶
+Ring3Stack		resb	1*1024 ; reseverd bytes
+Ring3StackTop:		; 栈顶
+Ring0Stack		resb	1*1024 ; reseverd bytes
+Ring0StackTop:		; 栈顶
 
 [section .data]	; 数据在此
-
-num1st		dd	3
-num2nd		dd	4
-disp_pos	dd	0
+;disp_pos	dd	0
 
 [section .text]	; 代码在此
 
 global _start	; 我们必须导出 _start 这个入口，以便让链接器识别。
-global	disp_str	; 导出这个函数为了让 bar.c 使用
-
+;global	disp_str	; 导出这个函数为了让 bar.c 使用
+;global disp_pos
+global Ring3StackTop
+global Ring0StackTop
+global ring0_exit
 
 _start:
+	cli
 	call set_gdt
 	mov	ax, [vedioseg_index]
 	mov	gs, ax			; 视频段选择子(目的)
@@ -44,49 +56,14 @@ _start:
 	jmp code32_index:real_protect_start
 real_protect_start:
 	mov	esp, StackTop
-	push	dword [num2nd]	; `.
-	push	dword [num1st]	;  |
-	call	choose		;  | choose(num1st, num2nd);
-	add	esp, 8		; /
-	hlt
+	call protect_main
+	call ldt_code_index:ldt_function
+	call ring3main
+ring0_exit:
+	call ring0exit
+	jmp $
 
 
-; ========================================================================
-;                  void disp_str(char * info);
-; ========================================================================
-disp_str:
-	push	ebp
-	mov	ebp, esp
 
-	mov	esi, [ebp + 8]	; pszInfo
-	mov	edi, [disp_pos]
-	mov	ah, 0Fh
-.1:
-	lodsb
-	test	al, al
-	jz	.2
-	cmp	al, 0Ah	; 是回车吗?
-	jnz	.3
-	push	eax
-	mov	eax, edi
-	mov	bl, 160
-	div	bl
-	and	eax, 0FFh
-	inc	eax
-	mov	bl, 160
-	mul	bl
-	mov	edi, eax
-	pop	eax
-	jmp	.1
-.3:
-	mov	[gs:edi], ax
-	add	edi, 2
-	jmp	.1
-
-.2:
-	mov	[disp_pos], edi
-
-	pop	ebp
-	ret
 
 
