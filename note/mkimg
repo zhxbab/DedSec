@@ -1,0 +1,6 @@
+1. bximage generate a img file
+2. fdisk -C [cylinder] create a disk range
+3. MBR only has 446 Byte for boot. So use cmd dd if=../src/boot.bin of=OS.img bs=446 count=1 conv=notrunc.
+   conv=notrunc is essential.
+4. MBR boot code need to write
+5. disk boot need not only 0xaa55 but also disk range information. But floopy need only 0xaa55 

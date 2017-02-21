@@ -1,0 +1,3 @@
+1. need to add toggle=ctrl+f10 below mouse option in bochsrc for exit/entry bochs env
+2. bochs tr default base is 0x0, before ltr, bochs use the area data as tss, so sometimes the io-map may be 0x0000. And ring3 can access io.
+3. bochs ss default is 0x0, the default stack is 0x0.  

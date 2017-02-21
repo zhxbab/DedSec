@@ -1,0 +1,11 @@
+#ifndef	_TYPE_H_
+#define	_TYPE_H_
+
+
+typedef	unsigned int		u32;
+typedef	unsigned short		u16;
+typedef	unsigned char		u8;
+typedef	signed char			s8;
+
+
+#endif /* _TYPE_H_ */
