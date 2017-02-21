@@ -24,11 +24,7 @@ all:
 clean:
 	$(MAKE) clean -C  ${BOOTLOADER_PATH}
 	$(MAKE) clean -C  ${KERNEL_PATH}
-<<<<<<< HEAD
 	rm -f ${IMG_PATH}/${IMG} bochsout.txt
-=======
-	rm -f ${IMG_PATH}/${IMG}
->>>>>>> b603d647e84407d9514fda4df8d5ef851a6511b1
 	cp ${IMG_PATH}/DedSec_ori.img ${IMG_PATH}/${IMG}
 	
 .PHONY: run
