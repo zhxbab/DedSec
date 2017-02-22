@@ -51,6 +51,9 @@
 
 #define GATE32_NO_COUNT				0x0
 
+#define LOCATION_GDT				0x0
+#define LOCATION_LDT				0x1
+
 /* GDT MAP */
 #define GDT_RESERVERD				0x0
 #define GDT_KERNEL_CODE				0x1
@@ -62,47 +65,49 @@
 #define GDT_RING3_DATA 				0x7
 #define GDT_TSS32_DESCRIPTOR 		0x8
 /* LDT MAP */
-#define LDT_KERNEL_CODE				0x1
-#define LDT_KERNEL_DATA				0x2
+#define LDT_KERNEL_CODE				0x0
+#define LDT_KERNEL_DATA				0x1
 
 #define init_descriptor32_data(index, data_0_v, data_1_v)\
-	[index].descriptor32_data[0] = data_0_v,\
-	[index].descriptor32_data[1] = data_1_v
+	[index].data[0] = data_0_v,\
+	[index].data[1] = data_1_v
 
 #define init_gate32_data(index, data_0_v, data_1_v)\
-	[index].gate32_data[0] = data_0_v,\
-	[index].gate32_data[1] = data_1_v
+	[index].data[0] = data_0_v,\
+	[index].data[1] = data_1_v
 
 #define init_descriptor32_bitmap(index, seg_limit_0_v, base_0_v, base_1_v, type_v, dpl_v, p_v,seg_limit_1_v, avl_v, size_type_v, g_v, base_2_v)\
-	[index].bitmap.seg_limit_0 = seg_limit_0_v,\
-	[index].bitmap.base_0 = base_0_v,\
-	[index].bitmap.base_1 = base_1_v,\
-	[index].bitmap.type = type_v,\
-	[index].bitmap.dpl = dpl_v,\
-	[index].bitmap.p = p_v,\
-	[index].bitmap.seg_limit_1 = seg_limit_1_v,\
-	[index].bitmap.avl = avl_v,\
-	[index].bitmap.size_type = size_type_v,\
-	[index].bitmap.g = g_v,\
-	[index].bitmap.base_2 = base_2_v
+	[index].descriptor_bitmap.seg_limit_0 = seg_limit_0_v,\
+	[index].descriptor_bitmap.base_0 = base_0_v,\
+	[index].descriptor_bitmap.base_1 = base_1_v,\
+	[index].descriptor_bitmap.type = type_v,\
+	[index].descriptor_bitmap.dpl = dpl_v,\
+	[index].descriptor_bitmap.p = p_v,\
+	[index].descriptor_bitmap.seg_limit_1 = seg_limit_1_v,\
+	[index].descriptor_bitmap.avl = avl_v,\
+	[index].descriptor_bitmap.size_type = size_type_v,\
+	[index].descriptor_bitmap.g = g_v,\
+	[index].descriptor_bitmap.base_2 = base_2_v
 
 #define init_gate32_bitmap(index, offset_0_v, seg_s_v, count_v, type_v, dpl_v, p_v, offset_1_v)\
-	[index].bitmap.offset_0 = offset_0_v,\
-	[index].bitmap.seg_s = seg_s_v,\
-	[index].bitmap.count = count_v,\
-	[index].bitmap.dummy_0 = 0x0,\
-	[index].bitmap.type = type_v,\
-	[index].bitmap.dpl = dpl_v,\
-	[index].bitmap.p = p_v,\
-	[index].bitmap.offset_1 = offset_1_v
+	[index].gate32_bitmap.offset_0 = offset_0_v,\
+	[index].gate32_bitmap.seg_s = seg_s_v,\
+	[index].gate32_bitmap.count = count_v,\
+	[index].gate32_bitmap.dummy_0 = 0x0,\
+	[index].gate32_bitmap.type = type_v,\
+	[index].gate32_bitmap.dpl = dpl_v,\
+	[index].gate32_bitmap.p = p_v,\
+	[index].gate32_bitmap.offset_1 = offset_1_v
 
-#define get_selector(index,location,rpl)\
-	((index<<3)&0xff + (location<<2)&0xf + (rpl&0xf))
+#define set_gdt_selector(index,rpl)\
+	((index<<3) + (LOCATION_GDT<<2) + rpl)
+#define set_ldt_selector(index,rpl)\
+	((index<<3) + (LOCATION_LDT<<2) + rpl)
 
 /* 存储段描述符/系统段描述符 */
 typedef union s_descriptor32		/* 共 8 个字节 */
 {
-	unsigned int descriptor32_data[2];
+	unsigned int data[2];
 	struct descriptor_bitmap_s{
 		unsigned short seg_limit_0	:16;
 		unsigned short base_0	:16;
@@ -120,7 +125,7 @@ typedef union s_descriptor32		/* 共 8 个字节 */
 
 typedef union s_gate32		/* 共 8 个字节 */
 {
-	unsigned int gate32_data[2];
+	unsigned int data[2];
 	struct gate32_bitmap_s{
 		unsigned short offset_0	:16;
 		unsigned short seg_s	:16;
@@ -194,8 +199,8 @@ typedef struct s_incall_info32{
 	u16 seg;
 }INCALL_INFO32;
 
-void set_ldt_descriptor(DESCRIPTOR32 *pdescripot, u8 dpl, u32 base, u32 limit);
-void set_call_gate32(DESCRIPTOR32 *pdescripot, u8 dpl, u32 offset, u16 selector);
+void set_descriptor(volatile DESCRIPTOR32 *pdescripot, u8 dpl, u32 base, u32 limit, u8 type);
+void set_gate32(volatile GATE32 *pgate, u8 dpl, u32 offset, u16 selector, u8 type);
 void init_tss32();
 void set_tss32(TSS32* ptss32);
 

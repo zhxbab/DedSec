@@ -12,16 +12,16 @@
 ;import function or global value
 extern choose	; int choose(int a, int b);
 extern set_gdt  ; void set_gdt()
-extern data32_index
-extern vedioseg_index
+extern sel_kernel_data
+extern sel_vram
 extern protect_main
 extern ldt_function
 extern ring3main
 extern ring0exit
 ;constant define
 
-code32_index 	equ		0x8
-ldt_code_index 	equ		0x4
+sel_kernel_code 		equ		0x8
+sel_ldt_kernel_code 	equ		0x4
 
 [section .bss align=16]
 StackSpace		resb	4*1024 ; reseverd bytes
@@ -46,18 +46,18 @@ global ring0_exit
 _start:
 	cli
 	call set_gdt
-	mov	ax, [vedioseg_index]
+	mov	ax, [sel_vram]
 	mov	gs, ax			; 视频段选择子(目的)
-	mov ax, [data32_index]
+	mov ax, [sel_kernel_data]
 	mov ds, ax
 	mov ss, ax
 	mov es, ax
 	mov fs, ax
-	jmp code32_index:real_protect_start
+	jmp sel_kernel_code:real_protect_start
 real_protect_start:
 	mov	esp, StackTop
 	call protect_main
-	call ldt_code_index:ldt_function
+	call sel_ldt_kernel_code:ldt_function
 	call ring3main
 ring0_exit:
 	call ring0exit

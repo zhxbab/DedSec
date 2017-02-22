@@ -2,7 +2,7 @@
 #include "../lib/inc/klib.h"
 #include "inc/protect.h"
 
-extern unsigned short code32_index;
+extern unsigned short sel_kernel_code;
 extern void	divide_error();
 extern void	single_step_exception();
 extern void	nmi();
@@ -37,11 +37,11 @@ extern void int_8259_14();
 extern void int_8259_15();
 extern void int_80h();
 
-INT_GATE32 intgate32[256];
+GATE32 idt[256];
 
 IDTR32 idtr = {
 		.limit = IDT_SIZE,
-		.base = (unsigned int)intgate32
+		.base = (unsigned int)idt
 };
 
 /*======================================================================*
@@ -94,22 +94,21 @@ PUBLIC void spurious_irq(int irq)
 
 PUBLIC void set_idt(){
 	disp_str("Start Set Idt\n");
-	set_idt_single(0x80,(u32)int_80h,0,code32_index);
-	set_idt_single(0x0,(u32)divide_error,0,code32_index);
-	set_idt_single(0x1+INT_VECTOR_IRQ0,(u32)int_8259_1,0,code32_index);
-	set_idt_single(0x0+INT_VECTOR_IRQ0,(u32)int_8259_0,0,code32_index);
+	set_idt_single(0x80,(u32)int_80h,0,sel_kernel_code);
+	set_idt_single(0x0,(u32)divide_error,0,sel_kernel_code);
+	set_idt_single(0x1+INT_VECTOR_IRQ0,(u32)int_8259_1,0,sel_kernel_code);
+	set_idt_single(0x0+INT_VECTOR_IRQ0,(u32)int_8259_0,0,sel_kernel_code);
 	__asm__ __volatile__("lidt %0" : :"m"(idtr));
 	__asm__ __volatile__("sti");
 	disp_str("Enable interrput\n");
 }
 PUBLIC void set_idt_single(u8 index, u32 handler, u8 dpl, u16 seg){
-	intgate32[index].bitmap.seg_s = seg;
-	intgate32[index].bitmap.dpl = dpl;
-	intgate32[index].bitmap.offset_0 = (u16)handler&0xFFFF;
-	intgate32[index].bitmap.offset_1 = (u16)((handler>>16)&0xFFFF);
-	intgate32[index].bitmap.p = 1;
-	intgate32[index].bitmap.type = 0x6;
-	intgate32[index].bitmap.d = 0x1;
+	idt[index].gate32_bitmap.seg_s = seg;
+	idt[index].gate32_bitmap.dpl = dpl;
+	idt[index].gate32_bitmap.offset_0 = (u16)handler&0xFFFF;
+	idt[index].gate32_bitmap.offset_1 = (u16)((handler>>16)&0xFFFF);
+	idt[index].gate32_bitmap.p = 1;
+	idt[index].gate32_bitmap.type = 0x0E;
 }
 
 void real_divide_error(){
@@ -165,7 +164,7 @@ void real_int_8259_0(){
 	sent_eoi(0);
 }
 void real_int_8259_1(){
-	u8 data = get_keyboard_data();
+	volatile u8 data = get_keyboard_data();
 	sent_eoi(1);
 	disp_int_hex((int)data);
 	disp_char('\n');
@@ -228,8 +227,8 @@ void sent_eoi(u8 index){
 }
 
 u8 get_keyboard_data(){
-	u8 status = inb(KEYBOARD_CMD_IO);
-	u8 data;
+	volatile u8 status = inb(KEYBOARD_CMD_IO);
+	volatile u8 data;
 	//if(status == 0x1){
 	data = inb(KEYBOARD_DATA_IO);
 	//}
