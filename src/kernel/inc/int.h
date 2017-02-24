@@ -39,9 +39,8 @@
 #define RATE_GENERATOR 0x34 /* 00-11-010-0 :
 			     * Counter0 - LSB then MSB - rate generator - binary
 			     */
-#define TIMER_FREQ     1193182L/* clock frequency for timer in PC and AT */
-#define HZ             100  /* clock freq (software settable on IBM-PC) */
-
+#define TIMER_0_LATCH	11930/* clock frequency for timer0(8253) in PC and AT (100Hz)*/
+#define TIMRE_0_FREQ	100  /* clock freq (software settable on IBM-PC) */
 
 
 void real_divide_error();
@@ -79,9 +78,11 @@ void real_int_8259_15();
 void real_int_80h();
 void sent_eoi(u8 index);
 u8 get_keyboard_data();
-
+void enable_8253();
+void set_8253(volatile u32 latch);
 PUBLIC void init_8259A();
-PUBLIC void set_idt_single(u8 index, u32 handler, u8 dpl, u16 seg);
+PUBLIC void set_idt_single(u8 index, u32 handler, u8 dpl, u16 sel);
+PUBLIC void set_idt_single_task(u8 index, u8 dpl, u16 sel);
 PUBLIC void set_idt();
 PUBLIC void spurious_irq(int irq);
 

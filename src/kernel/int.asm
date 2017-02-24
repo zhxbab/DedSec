@@ -69,7 +69,7 @@ global  int_8259_13
 global  int_8259_14
 global  int_8259_15
 global  int_80h
-
+global  real_int_8259_0_exit
 ; 中断和异常 -- 异常
 divide_error:
 	cli
@@ -154,6 +154,7 @@ copr_error:
 int_8259_0:
 	cli
 	call    real_int_8259_0
+real_int_8259_0_exit:
 	sti
 	iretd
 int_8259_1:

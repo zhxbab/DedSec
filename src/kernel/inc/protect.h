@@ -64,6 +64,10 @@
 #define GDT_RING3_CODE 				0x6
 #define GDT_RING3_DATA 				0x7
 #define GDT_TSS32_DESCRIPTOR 		0x8
+#define GDT_TASKA_TSS32_DESCRIPTOR 		0x9
+#define GDT_TASKB_TSS32_DESCRIPTOR 		0xa
+#define GDT_8253_TSS32_DESCRIPTOR 		0xb
+
 /* LDT MAP */
 #define LDT_KERNEL_CODE				0x0
 #define LDT_KERNEL_DATA				0x1
@@ -199,9 +203,11 @@ typedef struct s_incall_info32{
 	u16 seg;
 }INCALL_INFO32;
 
-void set_descriptor(volatile DESCRIPTOR32 *pdescripot, u8 dpl, u32 base, u32 limit, u8 type);
-void set_gate32(volatile GATE32 *pgate, u8 dpl, u32 offset, u16 selector, u8 type);
-void init_tss32();
+void set_descriptor(DESCRIPTOR32 *pdescripot, u8 dpl, u32 base, u32 limit, u8 type);
+void set_gate32(GATE32 *pgate, u8 dpl, u32 offset, u16 selector, u8 type);
 void set_tss32(TSS32* ptss32);
-
+void TaskA();
+void ring3main();
+void init_tss32(TSS32 *ptss32, u16 ptss32_sel, u32 ptss32_gdt_index, u8 dpl, u8 flag);
+void set_8253_tss();
 #endif /* _PROTECT_H_ */

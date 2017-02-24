@@ -25,6 +25,7 @@ PUBLIC void	disp_str(u8 * pszInfo){
 }
 
 PUBLIC void	disp_char(u8 data){
+	if(disp_pos >= 4000) disp_pos = 0;
 	unsigned int temp_disp_pos = disp_pos;
 	u8 color = 0x0f;
 	u16 cinfo = 0x0;

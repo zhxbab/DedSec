@@ -3,6 +3,7 @@
 #include "inc/protect.h"
 
 extern unsigned short sel_kernel_code;
+extern unsigned short sel_8253_tss_des;
 extern void	divide_error();
 extern void	single_step_exception();
 extern void	nmi();
@@ -97,18 +98,25 @@ PUBLIC void set_idt(){
 	set_idt_single(0x80,(u32)int_80h,0,sel_kernel_code);
 	set_idt_single(0x0,(u32)divide_error,0,sel_kernel_code);
 	set_idt_single(0x1+INT_VECTOR_IRQ0,(u32)int_8259_1,0,sel_kernel_code);
-	set_idt_single(0x0+INT_VECTOR_IRQ0,(u32)int_8259_0,0,sel_kernel_code);
+	set_idt_single_task(0x0+INT_VECTOR_IRQ0,0,sel_8253_tss_des);
 	__asm__ __volatile__("lidt %0" : :"m"(idtr));
 	__asm__ __volatile__("sti");
 	disp_str("Enable interrput\n");
 }
-PUBLIC void set_idt_single(u8 index, u32 handler, u8 dpl, u16 seg){
-	idt[index].gate32_bitmap.seg_s = seg;
+PUBLIC void set_idt_single(u8 index, u32 handler, u8 dpl, u16 sel){
+	idt[index].gate32_bitmap.seg_s = sel;
 	idt[index].gate32_bitmap.dpl = dpl;
 	idt[index].gate32_bitmap.offset_0 = (u16)handler&0xFFFF;
 	idt[index].gate32_bitmap.offset_1 = (u16)((handler>>16)&0xFFFF);
 	idt[index].gate32_bitmap.p = 1;
-	idt[index].gate32_bitmap.type = 0x0E;
+	idt[index].gate32_bitmap.type = DA_386IGate;
+}
+
+PUBLIC void set_idt_single_task(u8 index, u8 dpl, u16 sel){
+	idt[index].gate32_bitmap.seg_s = sel;
+	idt[index].gate32_bitmap.dpl = dpl;
+	idt[index].gate32_bitmap.p = 1;
+	idt[index].gate32_bitmap.type = DA_TaskGate;
 }
 
 void real_divide_error(){
@@ -233,4 +241,20 @@ u8 get_keyboard_data(){
 	data = inb(KEYBOARD_DATA_IO);
 	//}
 	return data;
+}
+
+void enable_8253(){
+	outb(INT_M_CTLMASK,	0xFC);//enable keyboard and 8253
+}
+
+void set_8253(volatile u32 latch){
+	__asm__ __volatile__("cli");
+	__asm__ __volatile__("movb $0x36, %al");
+	__asm__ __volatile__("movl $0x43, %edx");
+	__asm__ __volatile__("outb %al, %dx");
+	__asm__ __volatile__("movl %0, %%eax"::"m"(latch));
+	__asm__ __volatile__("movl $0x40, %edx");
+	__asm__ __volatile__("outb %al, %dx");
+	__asm__ __volatile__("movb %ah, %al");
+	__asm__ __volatile__("outb %al, %dx");
 }
