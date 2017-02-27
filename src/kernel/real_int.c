@@ -98,7 +98,7 @@ PUBLIC void set_idt(){
 	set_idt_single(0x80,(u32)int_80h,0,sel_kernel_code);
 	set_idt_single(0x0,(u32)divide_error,0,sel_kernel_code);
 	set_idt_single(0x1+INT_VECTOR_IRQ0,(u32)int_8259_1,0,sel_kernel_code);
-	set_idt_single_task(0x0+INT_VECTOR_IRQ0,0,sel_8253_tss_des);
+	set_idt_single(0x0+INT_VECTOR_IRQ0,(u32)int_8259_0,0,sel_kernel_code);
 	__asm__ __volatile__("lidt %0" : :"m"(idtr));
 	__asm__ __volatile__("sti");
 	disp_str("Enable interrput\n");

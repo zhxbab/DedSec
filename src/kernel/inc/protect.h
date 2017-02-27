@@ -1,6 +1,7 @@
 #ifndef	_PROTECT_H_
 #define	_PROTECT_H_
 #include "../../lib/inc/type.h"
+#include "thread.h"
 /* GDT 和 IDT 中描述符的个数 */
 #define	GDT_SIZE	128*8
 #define	IDT_SIZE	256*8
@@ -210,4 +211,6 @@ void TaskA();
 void ring3main();
 void init_tss32(TSS32 *ptss32, u16 ptss32_sel, u32 ptss32_gdt_index, u8 dpl, u8 flag);
 void set_8253_tss();
+void start_task(THREAD_FRAME* pframe, u32 id, void * pfunc);
+void init_taskB();
 #endif /* _PROTECT_H_ */

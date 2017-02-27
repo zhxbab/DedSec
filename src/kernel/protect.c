@@ -20,7 +20,8 @@
 extern u32 Ring3StackTop;
 extern u32 Ring0StackTop;
 extern void ring0_exit();
-extern u32 real_int_8259_0_exit;
+extern u32 int_8259_0;
+//extern u32 real_int_8259_0_exit;
 DESCRIPTOR32 gdt_des[16] = {
 		init_descriptor32_data(GDT_RESERVERD,0x0,0x0),
 		init_descriptor32_bitmap(GDT_KERNEL_CODE,0xffff,0x0000,0x00,DA_CR,DPL_PRIVILEGE_KRNL,\
@@ -58,9 +59,12 @@ DESCRIPTOR32 ldt_des[2] = {
 		init_descriptor32_bitmap(LDT_KERNEL_DATA,0xffff,0x0000,0x00,DA_DRW,DPL_PRIVILEGE_KRNL,\
 				SEG_PRESENT,0xf,SEG_AVL_SET,SEG_SIZE_TYPE_PROTECT,SEG_GRANULARITY_4K,0x00), // LDT Data Seg
 };
-TSS32 tss32, TaskA_tss32, tss32_8253;
+TSS32 tss32, TaskA_tss32, tss32_8253, TaskB_tss32;
 TR tr;
 u32 time0_handler_stack[100];
+u32 taskb_stack[100];
+u32 current_thread_id;
+THREAD_FRAME Task_frame[3];
 
 unsigned short sel_kernel_code = set_gdt_selector(GDT_KERNEL_CODE,RPL_PRIVILEGE_KRNL);
 unsigned short sel_kernel_data = set_gdt_selector(GDT_KERNEL_DATA,RPL_PRIVILEGE_KRNL);
@@ -75,6 +79,7 @@ unsigned short sel_ldt_kernel_code = set_ldt_selector(LDT_KERNEL_CODE,RPL_PRIVIL
 unsigned short sel_ldt_kernel_data = set_ldt_selector(LDT_KERNEL_DATA,RPL_PRIVILEGE_KRNL);
 
 unsigned short sel_taska_tss_des = set_gdt_selector(GDT_TASKA_TSS32_DESCRIPTOR,RPL_PRIVILEGE_USER);
+unsigned short sel_taskb_tss_des = set_gdt_selector(GDT_TASKB_TSS32_DESCRIPTOR,RPL_PRIVILEGE_USER);
 unsigned short sel_8253_tss_des = set_gdt_selector(GDT_8253_TSS32_DESCRIPTOR,RPL_PRIVILEGE_KRNL);
 
 void set_gdt(){
@@ -158,9 +163,9 @@ void set_8253_tss(){
 	tss32_8253.es = sel_kernel_data;
 	tss32_8253.gs = sel_vram;
 	tss32_8253.fs = sel_kernel_data;
-	tss32_8253.eip = (u32)real_int_8259_0;
+	tss32_8253.eip = (u32)&int_8259_0;
 	tss32_8253.esp = (u32)&time0_handler_stack[stack_top];
-	time0_handler_stack[stack_top] = (u32)&real_int_8259_0_exit;
+	//time0_handler_stack[stack_top] = (u32)&real_int_8259_0_exit;
 }
 void ldt_function(){
 	disp_str("Enter LDT function\n");
@@ -178,24 +183,108 @@ void ring3start(){
 }
 
 void ring3main(){
-	volatile RING3_INFO32 stack_info;
-	init_tss32(&TaskA_tss32,sel_taska_tss_des,GDT_TASKA_TSS32_DESCRIPTOR,DPL_PRIVILEGE_KRNL,1);
-	stack_info.ss = sel_ring3_data;
-	stack_info.esp = (u32)&Ring3StackTop;
-	stack_info.cs = sel_ring3_code;
-	stack_info.eip = (u32)TaskA;
-	__asm__ __volatile__("movw %0, %%ax"::"m"(stack_info.ss));
-	__asm__ __volatile__("movw %ax, %ds");
-	__asm__ __volatile__("pushl %0"::"m"(stack_info.ss)); //stack swith need every entry 4-bytes align
-	__asm__ __volatile__("pushl %0"::"m"(stack_info.esp));
-	__asm__ __volatile__("pushl %0"::"m"(stack_info.cs));
-	__asm__ __volatile__("pushl %0"::"m"(stack_info.eip));
-	__asm__ __volatile__("sti");
-	__asm__ __volatile__(".byte 0xCB");
+	//volatile RING3_INFO32 stack_info;
+	u32 excepted_id = 1;
+	init_tss32(&TaskA_tss32,sel_taska_tss_des,GDT_TASKA_TSS32_DESCRIPTOR,DPL_PRIVILEGE_USER,1);
+	init_tss32(&TaskB_tss32,sel_taskb_tss_des,GDT_TASKB_TSS32_DESCRIPTOR,DPL_PRIVILEGE_USER,1);
+	init_taskB();
+	start_task(&Task_frame[excepted_id],excepted_id,&TaskA);
+
+
 }
 
 void TaskA(){
 	while(1){
 		disp_str("A");
 	}
+}
+
+void TaskB(){
+	while(1){
+		disp_str("B");
+	}
+}
+
+void start_task(THREAD_FRAME* pframe, u32 id, void * pfunc){
+	pframe->thread_id = id;
+	current_thread_id = id;
+	pframe->stack_frame.ss = sel_ring3_data;
+	pframe->stack_frame.esp = (u32)&Ring3StackTop;
+	pframe->stack_frame.cs = sel_ring3_code;
+	pframe->stack_frame.eip = (u32)pfunc;
+	__asm__ __volatile__("movw %0, %%ax"::"m"(pframe->stack_frame.ss));
+	__asm__ __volatile__("movw %ax, %ds");
+	__asm__ __volatile__("pushl %0"::"m"(pframe->stack_frame.ss)); //stack swith need every entry 4-bytes align
+	__asm__ __volatile__("pushl %0"::"m"(pframe->stack_frame.esp));
+	__asm__ __volatile__("pushl %0"::"m"(pframe->stack_frame.cs));
+	__asm__ __volatile__("pushl %0"::"m"(pframe->stack_frame.eip));
+	__asm__ __volatile__("sti");
+	__asm__ __volatile__(".byte 0xCB");
+}
+
+void init_taskB(){
+	u32 stack_taskb_top = sizeof(taskb_stack)-4;
+	TaskB_tss32.cs = sel_ring3_code;
+	TaskB_tss32.ds = sel_ring3_data;
+	TaskB_tss32.ss = sel_ring3_data;
+	TaskB_tss32.es = sel_ring3_data;
+	TaskB_tss32.gs = sel_vram;
+	TaskB_tss32.fs = sel_ring3_data;
+	TaskB_tss32.eip = (u32)&TaskB;
+	TaskB_tss32.esp = (u32)&taskb_stack[stack_taskb_top];
+	TaskB_tss32.flags = 0x202;
+
+}
+
+void restart_next_task(){
+	//INCALL_INFO32 ijmp;
+	real_int_8259_0();
+	if(current_thread_id==1){
+		TaskA_tss32.ds = Task_frame[current_thread_id].stack_frame.ds;
+		TaskA_tss32.gs = Task_frame[current_thread_id].stack_frame.gs;
+		TaskA_tss32.es = Task_frame[current_thread_id].stack_frame.es;
+		TaskA_tss32.ss = Task_frame[current_thread_id].stack_frame.ss;
+		TaskA_tss32.fs = Task_frame[current_thread_id].stack_frame.fs;
+		TaskA_tss32.eax = Task_frame[current_thread_id].stack_frame.eax;
+		TaskA_tss32.ebp = Task_frame[current_thread_id].stack_frame.ebp;
+		TaskA_tss32.ebx = Task_frame[current_thread_id].stack_frame.ebx;
+		TaskA_tss32.ecx = Task_frame[current_thread_id].stack_frame.ecx;
+		TaskA_tss32.edx = Task_frame[current_thread_id].stack_frame.edx;
+		TaskA_tss32.esi = Task_frame[current_thread_id].stack_frame.esi;
+		TaskA_tss32.edi = Task_frame[current_thread_id].stack_frame.edi;
+		TaskA_tss32.esp = Task_frame[current_thread_id].stack_frame.esp;
+		TaskA_tss32.eip = Task_frame[current_thread_id].stack_frame.eip;
+		TaskA_tss32.cs = Task_frame[current_thread_id].stack_frame.cs;
+		TaskA_tss32.flags = Task_frame[current_thread_id].stack_frame.eflags;
+		tss32_8253.backlink = (u32)sel_taskb_tss_des;
+		current_thread_id  = 2;
+		//ijmp.seg = sel_taska_tss_des;
+
+		//__asm__ __volatile__("ljmp *%0"::"m"(ijmp));
+	}
+	else{
+		if(current_thread_id==2){
+			TaskB_tss32.ds = Task_frame[current_thread_id].stack_frame.ds;
+			TaskB_tss32.gs = Task_frame[current_thread_id].stack_frame.gs;
+			TaskB_tss32.es = Task_frame[current_thread_id].stack_frame.es;
+			TaskB_tss32.ss = Task_frame[current_thread_id].stack_frame.ss;
+			TaskB_tss32.fs = Task_frame[current_thread_id].stack_frame.fs;
+			TaskB_tss32.eax = Task_frame[current_thread_id].stack_frame.eax;
+			TaskB_tss32.ebp = Task_frame[current_thread_id].stack_frame.ebp;
+			TaskB_tss32.ebx = Task_frame[current_thread_id].stack_frame.ebx;
+			TaskB_tss32.ecx = Task_frame[current_thread_id].stack_frame.ecx;
+			TaskB_tss32.edx = Task_frame[current_thread_id].stack_frame.edx;
+			TaskB_tss32.esi = Task_frame[current_thread_id].stack_frame.esi;
+			TaskB_tss32.edi = Task_frame[current_thread_id].stack_frame.edi;
+			TaskB_tss32.esp = Task_frame[current_thread_id].stack_frame.esp;
+			TaskB_tss32.eip = Task_frame[current_thread_id].stack_frame.eip;
+			TaskB_tss32.cs = Task_frame[current_thread_id].stack_frame.cs;
+			TaskB_tss32.flags = Task_frame[current_thread_id].stack_frame.eflags;
+			tss32_8253.backlink = (u32)sel_taska_tss_des;
+			current_thread_id  = 1;
+		}
+	}
+	__asm__ __volatile__("ltr %0"::"m"(sel_8253_tss_des));
+	__asm__ __volatile__("sti");
+	__asm__ __volatile__("iret");
 }

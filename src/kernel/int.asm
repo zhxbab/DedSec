@@ -32,9 +32,11 @@ extern real_int_8259_13
 extern real_int_8259_14
 extern real_int_8259_15
 extern real_int_80h
-
-
-
+extern current_thread_id
+extern Task_frame
+extern restart_next_task
+STACK_FRAME_COUNT 	equ 	18
+THREAD_FRAME_SIZE 	equ 	76
 [section .text]	; 代码在此
 global	divide_error
 global	single_step_exception
@@ -153,9 +155,10 @@ copr_error:
 	iretd
 int_8259_0:
 	cli
-	call    real_int_8259_0
-real_int_8259_0_exit:
-	sti
+	call timer0_save
+;	call real_int_8259_0
+;real_int_8259_0_exit:
+;	sti
 	iretd
 int_8259_1:
 	cli
@@ -237,3 +240,43 @@ int_80h:
 	call    real_int_80h
 	sti
 	iretd
+
+timer0_save:
+        pushad          ; `.
+        push    ds      ;  |
+        push    es      ;  | 保存原寄存器值
+        push    fs      ;  |
+        push    gs      ; /
+        mov     dx, ss
+        mov     ds, dx
+        mov     es, dx
+
+        mov     esi, esp                    ;esi = 进程表起始地址
+		mov     edx, [current_thread_id]
+		mov		ebx, Task_frame
+		mov		eax, THREAD_FRAME_SIZE
+.1:
+		add		ebx, eax
+		dec		edx
+		jnz		.1
+		mov		edi, ebx
+		mov		ecx,STACK_FRAME_COUNT
+		rep		movsd
+		pushfd
+		mov		eax,[esp]
+		bts		eax, 14
+		mov		[esp], eax
+		popfd
+		jmp		restart_next_task
+;        inc     dword [k_reenter]           ;k_reenter++;
+;        cmp     dword [k_reenter], 0        ;if(k_reenter ==0)
+;        jne     .1                          ;{
+;        mov     esp, StackTop               ;  mov esp, StackTop <--切换到内核栈
+;        push    restart                     ;  push restart
+;        jmp     [esi + RETADR - P_STACKBASE];  return;
+;.1:                                         ;} else { 已经在内核栈，不需要再切换
+;        push    restart_reenter             ;  push restart_reenter
+;        jmp     [esi + RETADR - P_STACKBASE];  return;
+                                            ;}
+[section .data]	; 数据在此
+
