@@ -36,7 +36,7 @@ extern current_thread_id
 extern Task_frame
 extern restart_next_task
 STACK_FRAME_COUNT 	equ 	18
-THREAD_FRAME_SIZE 	equ 	76
+THREAD_FRAME_SIZE 	equ 	84
 [section .text]	; 代码在此
 global	divide_error
 global	single_step_exception

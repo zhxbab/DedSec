@@ -1,7 +1,9 @@
 #ifndef	_PROTECT_H_
 #define	_PROTECT_H_
+
 #include "../../lib/inc/type.h"
 #include "thread.h"
+
 /* GDT 和 IDT 中描述符的个数 */
 #define	GDT_SIZE	128*8
 #define	IDT_SIZE	256*8
@@ -67,7 +69,7 @@
 #define GDT_TSS32_DESCRIPTOR 		0x8
 #define GDT_TASKA_TSS32_DESCRIPTOR 		0x9
 #define GDT_TASKB_TSS32_DESCRIPTOR 		0xa
-#define GDT_8253_TSS32_DESCRIPTOR 		0xb
+#define GDT_TIMER0_TSS32_DESCRIPTOR 		0xb
 
 /* LDT MAP */
 #define LDT_KERNEL_CODE				0x0
@@ -161,37 +163,6 @@ typedef struct s_tr{
 	unsigned short selector;
 }TR;
 
-typedef struct s_tss32 {
-	u32	backlink;
-	u32	esp0;		/* stack pointer to use during interrupt */
-	u32	ss0;		/*   "   segment  "  "    "        "     */
-	u32	esp1;
-	u32	ss1;
-	u32	esp2;
-	u32	ss2;
-	u32	cr3;
-	u32	eip;
-	u32	flags;
-	u32	eax;
-	u32	ecx;
-	u32	edx;
-	u32	ebx;
-	u32	esp;
-	u32	ebp;
-	u32	esi;
-	u32	edi;
-	u32	es;
-	u32	cs;
-	u32	ss;
-	u32	ds;
-	u32	fs;
-	u32	gs;
-	u32	ldt;
-	u16	trap;
-	u16	iobase;	/* I/O位图基址大于或等于TSS段界限，就表示没有I/O许可位图 */
-	u8	iomap[128]; //io map
-}TSS32;
-
 typedef struct s_ring3_info32{
 	u16 ss;
 	u32 esp;
@@ -207,10 +178,15 @@ typedef struct s_incall_info32{
 void set_descriptor(DESCRIPTOR32 *pdescripot, u8 dpl, u32 base, u32 limit, u8 type);
 void set_gate32(GATE32 *pgate, u8 dpl, u32 offset, u16 selector, u8 type);
 void set_tss32(TSS32* ptss32);
+void init_thread_chain();
 void TaskA();
+void TaskB();
 void ring3main();
 void init_tss32(TSS32 *ptss32, u16 ptss32_sel, u32 ptss32_gdt_index, u8 dpl, u8 flag);
 void set_8253_tss();
-void start_task(THREAD_FRAME* pframe, u32 id, void * pfunc);
-void init_taskB();
+void start_task(THREAD_FRAME* pframe, u32 id);
+void scheduler();
+void save_tss(THREAD_FRAME *pTask_frame);
+void set_task_tss(THREAD_FRAME* pthread_frame, u32 stack_size, u16 code_sel, u16 data_sel, u16 vram_sel, u32 eflags, void * pfunc );
+void init_thread_chain();
 #endif /* _PROTECT_H_ */

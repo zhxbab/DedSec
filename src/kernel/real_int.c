@@ -243,11 +243,11 @@ u8 get_keyboard_data(){
 	return data;
 }
 
-void enable_8253(){
+void enable_timer0(){
 	outb(INT_M_CTLMASK,	0xFC);//enable keyboard and 8253
 }
 
-void set_8253(volatile u32 latch){
+void set_timer0(volatile u32 latch){
 	__asm__ __volatile__("cli");
 	__asm__ __volatile__("movb $0x36, %al");
 	__asm__ __volatile__("movl $0x43, %edx");
