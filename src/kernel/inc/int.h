@@ -85,5 +85,6 @@ PUBLIC void set_idt_single(u8 index, u32 handler, u8 dpl, u16 sel);
 PUBLIC void set_idt_single_task(u8 index, u8 dpl, u16 sel);
 PUBLIC void set_idt();
 PUBLIC void spurious_irq(int irq);
+void sys_get_tick();
 
 #endif /* _INT_H_ */

@@ -3,7 +3,6 @@
 #include "inc/protect.h"
 
 extern unsigned short sel_kernel_code;
-extern unsigned short sel_8253_tss_des;
 extern void	divide_error();
 extern void	single_step_exception();
 extern void	nmi();
@@ -37,7 +36,7 @@ extern void int_8259_13();
 extern void int_8259_14();
 extern void int_8259_15();
 extern void int_80h();
-
+extern u32 tick;
 GATE32 idt[256];
 
 IDTR32 idtr = {
@@ -95,10 +94,10 @@ PUBLIC void spurious_irq(int irq)
 
 PUBLIC void set_idt(){
 	disp_str("Start Set Idt\n");
-	set_idt_single(0x80,(u32)int_80h,0,sel_kernel_code);
-	set_idt_single(0x0,(u32)divide_error,0,sel_kernel_code);
-	set_idt_single(0x1+INT_VECTOR_IRQ0,(u32)int_8259_1,0,sel_kernel_code);
-	set_idt_single(0x0+INT_VECTOR_IRQ0,(u32)int_8259_0,0,sel_kernel_code);
+	set_idt_single(0x80,(u32)int_80h,DPL_PRIVILEGE_USER,sel_kernel_code);
+	set_idt_single(0x0,(u32)divide_error,DPL_PRIVILEGE_KRNL,sel_kernel_code);
+	set_idt_single(0x1+INT_VECTOR_IRQ0,(u32)int_8259_1,DPL_PRIVILEGE_USER,sel_kernel_code);
+	set_idt_single(0x0+INT_VECTOR_IRQ0,(u32)int_8259_0,DPL_PRIVILEGE_KRNL,sel_kernel_code);
 	__asm__ __volatile__("lidt %0" : :"m"(idtr));
 	__asm__ __volatile__("sti");
 	disp_str("Enable interrput\n");
@@ -168,7 +167,7 @@ void real_copr_error(){
 
 }
 void real_int_8259_0(){
-	disp_str("..");
+	disp_str(".");
 	sent_eoi(0);
 }
 void real_int_8259_1(){
@@ -223,6 +222,10 @@ void real_int_8259_15(){
 }
 void real_int_80h(){
 	disp_str("Enter 80h handler\n");
+}
+
+void sys_get_tick(){
+	__asm__ __volatile__("mov %0, %%eax"::"m"(tick));
 }
 
 void sent_eoi(u8 index){

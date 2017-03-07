@@ -35,8 +35,13 @@ extern real_int_80h
 extern current_thread_id
 extern Task_frame
 extern restart_next_task
+extern sys_get_tick
+
+
 STACK_FRAME_COUNT 	equ 	18
-THREAD_FRAME_SIZE 	equ 	84
+THREAD_FRAME_SIZE 	equ 	90
+SYSCALL_GET_TICK	equ		0x1
+
 [section .text]	; 代码在此
 global	divide_error
 global	single_step_exception
@@ -71,7 +76,7 @@ global  int_8259_13
 global  int_8259_14
 global  int_8259_15
 global  int_80h
-global  real_int_8259_0_exit
+
 ; 中断和异常 -- 异常
 divide_error:
 	cli
@@ -237,7 +242,13 @@ int_8259_15:
 	iretd
 int_80h:
 	cli
-	call    real_int_80h
+	cmp eax, SYSCALL_GET_TICK
+	je syscall_get_tick
+	jmp int_80h_exit
+syscall_get_tick:
+	call sys_get_tick
+	jmp int_80h_exit
+int_80h_exit:
 	sti
 	iretd
 

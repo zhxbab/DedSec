@@ -62,18 +62,20 @@
 #define GDT_KERNEL_CODE				0x1
 #define GDT_KERNEL_DATA				0x2
 #define GDT_VRAM					0x3
-#define GDT_LDT_DESCRIPTOR  		0x4
-#define GDT_CALL_GATE32				0x5 // for switch to kernel
-#define GDT_RING3_CODE 				0x6
-#define GDT_RING3_DATA 				0x7
-#define GDT_TSS32_DESCRIPTOR 		0x8
+#define GDT_LDT_TASKA_DESCRIPTOR  	0x4
+#define GDT_LDT_TASKB_DESCRIPTOR	0x5
+//#define GDT_RING3_CODE 				0x6
+//#define GDT_RING3_DATA 				0x7
+//#define GDT_TSS32_DESCRIPTOR 		0x8
 #define GDT_TASKA_TSS32_DESCRIPTOR 		0x9
 #define GDT_TASKB_TSS32_DESCRIPTOR 		0xa
 #define GDT_TIMER0_TSS32_DESCRIPTOR 		0xb
 
+
 /* LDT MAP */
 #define LDT_KERNEL_CODE				0x0
 #define LDT_KERNEL_DATA				0x1
+#define LDT_SIZE					0x2
 
 #define init_descriptor32_data(index, data_0_v, data_1_v)\
 	[index].data[0] = data_0_v,\
@@ -187,6 +189,8 @@ void set_8253_tss();
 void start_task(THREAD_FRAME* pframe, u32 id);
 void scheduler();
 void save_tss(THREAD_FRAME *pTask_frame);
-void set_task_tss(THREAD_FRAME* pthread_frame, u32 stack_size, u16 code_sel, u16 data_sel, u16 vram_sel, u32 eflags, void * pfunc );
+void set_task_tss(THREAD_FRAME* pthread_frame, u32 stack_size, u16 code_sel, u16 data_sel, u16 vram_sel, u32 eflags, void * pfunc, u16 sel_ldt);
 void init_thread_chain();
+void init_ldt(u8 index, DESCRIPTOR32 * pdes, u16 sel, u8 dpl);
+void delay(u32 milli_sec);
 #endif /* _PROTECT_H_ */

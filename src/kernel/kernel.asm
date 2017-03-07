@@ -24,11 +24,9 @@ sel_kernel_code 		equ		0x8
 sel_ldt_kernel_code 	equ		0x4
 
 [section .bss align=16]
-StackSpace		resb	4*1024 ; reseverd bytes
+StackSpace		resb	1*1024 ; reseverd bytes
 StackTop:		; 栈顶
-Ring3Stack		resb	1*1024 ; reseverd bytes
-Ring3StackTop:		; 栈顶
-Ring0Stack		resb	1*1024 ; reseverd bytes
+Ring0Stack		resb	4*1024 ; reseverd bytes
 Ring0StackTop:		; 栈顶
 
 [section .data]	; 数据在此
@@ -39,9 +37,7 @@ Ring0StackTop:		; 栈顶
 global _start	; 我们必须导出 _start 这个入口，以便让链接器识别。
 ;global	disp_str	; 导出这个函数为了让 bar.c 使用
 ;global disp_pos
-global Ring3StackTop
 global Ring0StackTop
-global ring0_exit
 
 _start:
 	cli
@@ -57,10 +53,6 @@ _start:
 real_protect_start:
 	mov	esp, StackTop
 	call protect_main
-	call sel_ldt_kernel_code:ldt_function
-	call ring3main
-ring0_exit:
-	call ring0exit
 	jmp $
 
 
